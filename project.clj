@@ -4,8 +4,8 @@
   :url "https://github.com/ccann/gregor.git"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.apache.kafka/kafka_2.11 "0.11.0.0"]]
+  :dependencies [[org.clojure/clojure "1.9.0"]
+                 [org.apache.kafka/kafka_2.12 "1.0.0"]]
   :plugins [[s3-wagon-private "1.1.2"]
             [lein-codox "0.10.3"]]
   :deploy-repositories {"clojars" {:url           "https://clojars.org/repo"
