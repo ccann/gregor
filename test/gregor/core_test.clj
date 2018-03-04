@@ -1,11 +1,10 @@
 (ns gregor.core-test
-  (:require [gregor.core :refer :all]
-            [clojure.test :refer [is testing deftest]])
-  (:import [org.apache.kafka.clients.consumer MockConsumer OffsetResetStrategy ConsumerRecords ConsumerRecord]
-           [org.apache.kafka.clients.producer MockProducer]
-           [org.apache.kafka.common TopicPartition]
-           [org.apache.kafka.common.serialization StringSerializer]
-           [java.util.concurrent TimeUnit]))
+  (:require [clojure.test :refer [deftest is]]
+            [gregor.core :refer :all])
+  (:import java.util.concurrent.TimeUnit
+           [org.apache.kafka.clients.consumer ConsumerRecord MockConsumer OffsetResetStrategy]
+           org.apache.kafka.clients.producer.MockProducer
+           org.apache.kafka.common.serialization.StringSerializer))
 
 (deftest producing
   (let [p (MockProducer. true (StringSerializer.) (StringSerializer.))]

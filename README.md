@@ -1,8 +1,6 @@
 # Gregor
 
-Lightweight Clojure bindings for [Apache Kafka](http://kafka.apache.org/) `0.9.X` and up.
-
-Currently tested on Kafka `0.11.0.0`.
+Lightweight Clojure bindings for [Apache Kafka](http://kafka.apache.org/) `1.0.0` and up.
 
 [![Clojars Project](https://clojars.org/io.weft/gregor/latest-version.svg)](https://clojars.org/io.weft/gregor)
 
@@ -75,7 +73,7 @@ Create a topic:
 ```clojure
 (create-topic {:connection-string "localhost:2181"} "some-topic" {})
 ```
-That empty map can be used to specify configuration for number of topic partitions, replication factor, 
+That empty map can be used to specify configuration for number of topic partitions, replication factor,
 
 Delete a topic:
 
@@ -94,5 +92,3 @@ List existing topics:
 ``` clojure
 (topics {:connection-string "localhost:2181"})
 ```
-
-
