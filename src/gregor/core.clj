@@ -2,14 +2,14 @@
   (:refer-clojure :exclude [flush send])
   (:import [org.apache.kafka.common TopicPartition]
            [org.apache.kafka.clients.consumer Consumer KafkaConsumer ConsumerRecords
-            ConsumerRecord OffsetAndMetadata OffsetCommitCallback
-            ConsumerRebalanceListener]
+                                              ConsumerRecord OffsetAndMetadata OffsetCommitCallback
+                                              ConsumerRebalanceListener]
            [org.apache.kafka.clients.producer Producer KafkaProducer Callback
-            ProducerRecord RecordMetadata]
-           [kafka.admin AdminUtils]
-           [kafka.utils ZkUtils]
-           [java.util.concurrent TimeUnit]
-           [scala.collection JavaConversions])
+                                              ProducerRecord RecordMetadata]
+           [org.apache.kafka.clients.admin AdminClient NewTopic]
+           [java.util.concurrent TimeUnit Future]
+           [scala.collection JavaConversions]
+           (java.util ArrayList Properties))
   (:require [clojure.set :as set]
             [clojure.string :as str]))
 
@@ -20,7 +20,7 @@
 
 (defn- as-properties
   [m]
-  (let [ps (java.util.Properties.)]
+  (let [ps (Properties.)]
     (doseq [[k v] m] (.setProperty ps k v))
     ps))
 
@@ -40,8 +40,8 @@
            (concat [p1 p2])
            (partition 2))
       (throw (IllegalArgumentException.
-              (str fn-name
-                   " expects even number of optional args, found odd number."))))))
+               (str fn-name
+                    " expects even number of optional args, found odd number."))))))
 
 
 (defn- ->tps
@@ -202,7 +202,7 @@
    offsets have been committed, return `nil`."
   [^Consumer consumer ^String topic ^Integer partition]
   (when-let [offset (.committed consumer (topic-partition topic partition))]
-    (let [m {:offset (.offset offset)
+    (let [m {:offset   (.offset offset)
              :metadata (.metadata offset)}]
       (if (clojure.string/blank? (:metadata m))
         (assoc m :metadata nil)
@@ -238,6 +238,7 @@
   "Return the offset of the next record that will be fetched if a record with that offset exists."
   ^Long
   [^Consumer consumer topic partition]
+  (poll consumer)
   (.position consumer (topic-partition topic partition)))
 
 
@@ -337,9 +338,9 @@
   ([servers group-id topics] (consumer servers group-id topics {}))
   ([servers group-id topics config]
    (let [servers (if (sequential? servers) (str/join "," servers) servers)
-         c (-> {"bootstrap.servers" servers
-                "group.id" group-id
-                "key.deserializer" str-deserializer
+         c (-> {"bootstrap.servers"  servers
+                "group.id"           group-id
+                "key.deserializer"   str-deserializer
                 "value.deserializer" str-deserializer}
                (merge config)
                (as-properties)
@@ -391,7 +392,7 @@
 
 (defn send
   "Asynchronously send a record to a topic, providing at least a topic and value."
-  ^java.util.concurrent.Future
+  ^Future
   ([^Producer producer ^String topic value]
    (send-record producer (->producer-record topic value)))
   ([^Producer producer ^String topic key value]
@@ -410,7 +411,7 @@
     - a metadata map: the metadata for the record that was sent.
       Keys are `:topic`, `:partition`, `:offset`.
     - a `java.lang.Exception` object: the exception thrown during processing of this record."
-  ^java.util.concurrent.Future
+  ^Future
   ([^Producer producer ^String topic value callback]
    (send-record producer (->producer-record topic value) callback))
   ([^Producer producer ^String topic key value callback]
@@ -438,8 +439,8 @@
   ([servers] (producer servers {}))
   ([servers config]
    (-> {"bootstrap.servers" servers
-        "key.serializer" str-serializer
-        "value.serializer" str-serializer}
+        "key.serializer"    str-serializer
+        "value.serializer"  str-serializer}
        (merge config)
        (as-properties)
        (KafkaProducer.))))
@@ -461,8 +462,8 @@
         `:connect-timeout` (optional) the connect timeout in millis."
   [config-map]
   (let [defaults {:connection-string nil
-                  :session-timeout 10000
-                  :connect-timeout 10000}
+                  :session-timeout   10000
+                  :connect-timeout   10000}
         merged (merge defaults config-map)
         valid-keys (set (keys defaults))
         merged-keys (set (keys merged))]
@@ -484,17 +485,17 @@
    Args:
     - `zk-config`: a map with Zookeeper connection details. This will be validated using
                    `validate-zookeeper-config` before use.
-    - `zookeeper`: this will be bound to an instance of `ZkUtils` while the body is executed.
+    - `zookeeper`: this will be bound to an instance of `AdminClient` while the body is executed.
                    The connection to Zookeeper will be cleaned up when the body exits."
   [zk-config zookeeper & body]
   `(let [zk-config# (validate-zookeeper-config ~zk-config)
-         client-and-conn# (ZkUtils/createZkClientAndConnection
-                           (:connection-string zk-config#)
-                           (:session-timeout zk-config#)
-                           (:connect-timeout zk-config#))]
-     (with-open [client# (._1 client-and-conn#)
-                 connection# (._2 client-and-conn#)]
-       (let [~zookeeper (ZkUtils. client# connection# false)]
+         admin-client# (AdminClient/create
+                         (as-properties
+                           {"bootstrap.servers" (:connection-string zk-config#)
+                            "enable.auto.commit" "true"
+                            "auto.commit.interval.ms" "1000"}))]
+     (with-open [client# admin-client#]
+       (let [~zookeeper client#]
          ~@body))))
 
 
@@ -531,17 +532,14 @@
                                        Valid values are `:disabled`, `:enforced`, `:safe`.
                                        Default is `:safe`."
   [zk-config topic {:keys [partitions replication-factor config rack-aware-mode]
-                    :or {partitions 1
-                         replication-factor 1
-                         config nil
-                         rack-aware-mode :safe}}]
+                    :or   {partitions         1
+                           replication-factor 1
+                           config             nil
+                           rack-aware-mode    :safe}}]
   (with-zookeeper zk-config zookeeper
-    (AdminUtils/createTopic zookeeper
-                            topic
-                            (int partitions)
-                            (int replication-factor)
-                            (as-properties config)
-                            (rack-aware-mode-constant rack-aware-mode))))
+                        (->> (NewTopic. topic partitions (short replication-factor))
+                             (.add (ArrayList.))
+                             (.createTopics zookeeper))))
 
 
 (defn topics
@@ -551,7 +549,12 @@
     - `zk-config`: a map with Zookeeper connection details as expected by `with-zookeeper`."
   [zk-config]
   (with-zookeeper zk-config zookeeper
-    (-> zookeeper .getAllTopics JavaConversions/seqAsJavaList seq)))
+                        (-> zookeeper
+                            .listTopics
+                            .names
+                            .get
+                            JavaConversions/seqAsJavaList
+                            seq)))
 
 
 (defn topic-exists?
@@ -561,8 +564,9 @@
     - `zk-config`: a map with Zookeeper connection details as expected `with-zookeeper`.
     - `topic`: The name of the topic to check for."
   [zk-config topic]
-  (with-zookeeper zk-config zookeeper
-    (AdminUtils/topicExists zookeeper topic)))
+  (->> (topics zk-config)
+       (some #(= topic %))
+       nil?))
 
 
 (defn delete-topic
@@ -573,4 +577,5 @@
     - `topic`: The name of the topic to delete."
   [zk-config topic]
   (with-zookeeper zk-config zookeeper
-    (AdminUtils/deleteTopic zookeeper topic)))
+                        (->> [topic]
+                             (.deleteTopics zookeeper))))
