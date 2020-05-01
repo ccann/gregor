@@ -4,7 +4,7 @@ Lightweight Clojure wrapper for [Apache Kafka](http://kafka.apache.org/) Consume
 
 ```clojure
  :dependencies [[org.clojure/clojure "1.10.0"]
-                [org.apache.kafka/kafka_2.12 "2.1.1"]]
+                [org.apache.kafka/kafka_2.12 "2.4.1"]]
 
 ```
 [![cljdoc Badge](https://cljdoc.org/badge/io.weft/gregor)](https://cljdoc.org/d/io.weft/gregor/CURRENT)
