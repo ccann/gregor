@@ -491,9 +491,8 @@
   `(let [zk-config# (validate-zookeeper-config ~zk-config)
          admin-client# (AdminClient/create
                          (as-properties
-                           {"bootstrap.servers" (:connection-string zk-config#)
-                            "enable.auto.commit" "true"
-                            "auto.commit.interval.ms" "1000"}))]
+                           {"bootstrap.servers"  (:connection-string zk-config#)
+                            "request.timeout.ms" (:connect-timeout zk-config#)}))]
      (with-open [client# admin-client#]
        (let [~zookeeper client#]
          ~@body))))
@@ -537,9 +536,9 @@
                            config             nil
                            rack-aware-mode    :safe}}]
   (with-zookeeper zk-config zookeeper
-                        (->> (NewTopic. topic partitions (short replication-factor))
-                             (.add (ArrayList.))
-                             (.createTopics zookeeper))))
+                  (->> (NewTopic. topic partitions (short replication-factor))
+                       (.add (ArrayList.))
+                       (.createTopics zookeeper))))
 
 
 (defn topics
@@ -549,12 +548,12 @@
     - `zk-config`: a map with Zookeeper connection details as expected by `with-zookeeper`."
   [zk-config]
   (with-zookeeper zk-config zookeeper
-                        (-> zookeeper
-                            .listTopics
-                            .names
-                            .get
-                            JavaConversions/seqAsJavaList
-                            seq)))
+                  (-> zookeeper
+                      .listTopics
+                      .names
+                      .get
+                      JavaConversions/seqAsJavaList
+                      seq)))
 
 
 (defn topic-exists?
@@ -577,5 +576,5 @@
     - `topic`: The name of the topic to delete."
   [zk-config topic]
   (with-zookeeper zk-config zookeeper
-                        (->> [topic]
-                             (.deleteTopics zookeeper))))
+                  (->> [topic]
+                       (.deleteTopics zookeeper))))
