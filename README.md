@@ -75,31 +75,36 @@ you'd like to provide a callback to be invoked when the send has been acknowledg
 
 ## Topic Management
 
+Create an admin client
+
+```clojure
+(def admin-client (admin "localhost:9092"))
+```
+
 Create a topic:
 
 ```clojure
-(create-topic {:connection-string "localhost:2181"} "some-topic" {})
+(create-topic admin-client "some-topic" {})
 ```
 That empty map can be used to specify configuration for number of topic partitions, replication factor,
 
 Delete a topic:
 
 ``` clojure
-(delete-topic {:connection-string "localhost:2181"} "some-topic")
+(delete-topic admin-client "some-topic")
 ```
 
 Query about a topic's existence:
 
 ``` clojure
-(topic-exists? {:connection-string "localhost:2181"} "some-topic")
+(topic-exists? admin-client "some-topic")
 ```
 
 List existing topics:
 
 ``` clojure
-(topics {:connection-string "localhost:2181"})
+(topics admin-client)
 ```
-
 
 ## License
 
